@@ -1,0 +1,56 @@
+global:
+  enabled: true
+  tlsDisable: false
+
+injector:
+  enabled: false
+
+server:
+  extraEnvironmentVars:
+    VAULT_ADDR: https://127.0.0.1:8200
+    VAULT_SKIP_VERIFY: true
+    VAULT_CACERT: /vault/userconfig/tls-secret/ca.crt  
+
+  extraVolumes:
+    - type: 'secret'
+      name: 'tls-secret'    
+
+  image:
+    repository: "vault"
+    tag: "1.5.0"
+    # Overrides the default Image Pull Policy
+    pullPolicy: IfNotPresent      
+
+  ha:
+    enabled: true
+    replicas: 3
+    
+    raft:  
+      enabled: true  
+      config: |
+        ui = true
+  
+        listener "tcp" {
+          tls_disable = 0
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/userconfig/tls-secret/tls.crt"
+          tls_key_file  = "/vault/userconfig/tls-secret/tls.key"
+          tls_client_ca_file = "/vault/userconfig/tls-secret/ca.crt"
+        }
+  
+        seal "gcpckms" {
+          project     = "vault-gke-324517"
+          region      = "europe-west2"
+          key_ring    = "vault-unseal"
+          crypto_key  = "vault-unseal-key1"
+        }
+  
+        storage "raft" {
+          path = "/vault/data"
+        }
+# ui:
+#   enabled: true
+#   serviceType: "LoadBalancer"
+#   serviceNodePort: null
+#   externalPort: 8200    
